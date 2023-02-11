@@ -2,7 +2,47 @@
 
 ### Pending changes
 
+### 1.4.0
+
 #### Additions
+
+([#179](https://github.com/badoo/MVICore/pull/179)):
+Introduced the ability to specify observation scheduler within the `Binder` class (see the `observeOn` DSL below), as well as the `observeOn` infix operator for `Connection` class (related to `Binder`).
+
+An example of how you might use this is as follows:
+
+```kotlin
+// mvicore-android example
+testLifecycleOwner.lifecycle.createDestroy {
+    observeOn(mainScheduler) {
+        bind(events to uiConsumer1)
+        bind(events to uiConsumer2)
+    }
+    observeOn(backgroundScheduler) {
+        bind(events to backgroundConsumer1)
+        bind(events to backgroundConsumer2)
+    }
+    bind(events to uiConsumer3 observeOn mainScheduler)
+    bind(events to backgroundConsumer3 observeOn backgroundScheduler)
+}
+
+// binder example
+binder.observeOn(mainScheduler) {
+    bind(events to uiConsumer1)
+    bind(events to uiConsumer2)
+}
+```
+
+See more details in [advanced binder](../binder/binder-advanced/#setting-connections-observation-scheduler) section.
+
+([#177](https://github.com/badoo/MVICore/pull/177)):
+Updated AndroidX appcompat to 1.4.1 and lifecycle to 2.5.1. Also updated Compile and Target SDK to API 33.
+
+([#176](https://github.com/badoo/MVICore/pull/176)):
+Updated RxJava to 2.2.21 and RxKotlin to 2.4.0
+
+([#173](https://github.com/badoo/MVICore/pull/173)):
+Updated Kotlin to 1.7.10
 
 ([#162](https://github.com/badoo/MVICore/pull/162)):
 Updated Kotlin to 1.6.21 (the plan is to update to 1.7.x fairly soon)
