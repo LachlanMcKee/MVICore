@@ -25,7 +25,7 @@ glideVersion = "4.13.2"
 # Testing
 okhttpVersion = "3.10.0"
 retrofitVersion = "2.4.0"
-gsonVersion = "2.8.5"
+gsonVersion = "2.10.1"
 
 # Testing
 junitVersion = "4.12"
