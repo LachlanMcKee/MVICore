@@ -7,6 +7,7 @@ plugins {
 }
 
 android {
+    namespace = "com.badoo.feature2"
     compileSdk = 33
 
     defaultConfig {
@@ -28,13 +29,10 @@ android {
 }
 
 dependencies {
-    implementation(libs.kotlin.stdlib)
-    implementation(libs.androidx.appcompat)
+    api(libs.rxjava2)
+    api(project(":mvicore"))
+    api(project(":mvicore-demo:mvicore-demo-catapi"))
 
-    implementation(libs.rxjava2)
-    implementation(libs.rxandroid)
-
-    implementation(project(":mvicore"))
     implementation(project(":mvicore-android"))
-    implementation(project(":mvicore-demo:mvicore-demo-catapi"))
+    implementation(libs.kotlin.stdlib)
 }

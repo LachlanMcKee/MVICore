@@ -10,6 +10,7 @@ plugins {
 group = "com.github.badoo.mvicore"
 
 android {
+    namespace = "com.badoo.mvicore.debugdrawer"
     compileSdk = 33
     defaultConfig {
         minSdk = 19
@@ -29,18 +30,16 @@ android {
 }
 
 dependencies {
+    api(project(":mvicore"))
+    api(libs.debugdrawer.base)
+    debugApi(libs.debugdrawer.impl)
+    releaseApi(libs.debugdrawer.noop)
+
     implementation(libs.androidx.constraintlayout)
-
     implementation(libs.rxjava2)
-    implementation(libs.rxkotlin)
-
     implementation(libs.kotlin.stdlib)
 
-    implementation(libs.debugdrawer.base)
-    debugImplementation(libs.debugdrawer.impl)
     debugImplementation(libs.debugdrawer.view.impl)
-    releaseImplementation(libs.debugdrawer.noop)
-    releaseImplementation(libs.debugdrawer.view.noop)
 
-    implementation(project(":mvicore"))
+    releaseImplementation(libs.debugdrawer.view.noop)
 }
