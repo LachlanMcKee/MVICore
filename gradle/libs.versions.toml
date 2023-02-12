@@ -23,7 +23,7 @@ scalpelVersion = "1.1.2"
 glideVersion = "4.13.2"
 
 # Testing
-okhttpVersion = "3.14.9"
+okhttpVersion = "4.10.0"
 retrofitVersion = "2.4.0"
 gsonVersion = "2.10.1"
 
