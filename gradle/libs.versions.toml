@@ -21,7 +21,7 @@ daggerVersion = "2.45"
 debugDrawerVersion = "0.9.0"
 timberVersion = "5.0.1"
 scalpelVersion = "1.1.2"
-glideVersion = "4.13.2"
+glideVersion = "4.16.0"
 
 # Testing
 retrofitVersion = "2.4.0"
