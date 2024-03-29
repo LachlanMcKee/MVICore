@@ -24,7 +24,7 @@ scalpelVersion = "1.1.2"
 glideVersion = "4.13.2"
 
 # Testing
-retrofitVersion = "2.4.0"
+retrofitVersion = "2.11.0"
 gsonVersion = "2.10.1"
 
 # Testing
