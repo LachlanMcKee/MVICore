@@ -43,7 +43,7 @@ class BaseFeatureWithSchedulerTest {
     private lateinit var actorInvocationLog: PublishSubject<Pair<TestWish, TestState>>
     private lateinit var actorInvocationLogTest: TestObserver<Pair<TestWish, TestState>>
     private lateinit var actorScheduler: Scheduler
-    private val featureScheduler = TestThreadFeatureScheduler()
+    private val featureScheduler = TestThreadSmartFeatureScheduler()
 
     @BeforeEach
     fun prepare() {
@@ -62,7 +62,7 @@ class BaseFeatureWithSchedulerTest {
             wishToAction = { wish -> wish },
             actor = TestHelper.TestActor(
                 { wish, state ->
-                    if (!featureScheduler.isOnFeatureThread) {
+                    if (!featureScheduler.isOnSchedulerThread) {
                         fail<Unit>("Actor was not invoked on the feature thread")
                     }
                     actorInvocationLog.onNext(wish to state)
@@ -70,12 +70,12 @@ class BaseFeatureWithSchedulerTest {
                 actorScheduler
             ),
             reducer = TestHelper.TestReducer(invocationCallback = {
-                if (!featureScheduler.isOnFeatureThread) {
+                if (!featureScheduler.isOnSchedulerThread) {
                     fail<Unit>("Reducer was not invoked on the feature thread")
                 }
             }),
             newsPublisher = TestHelper.TestNewsPublisher(),
-            featureScheduler = featureScheduler
+            threadStrategy = FeatureThreadStrategy.ExecuteOnFeatureScheduler(featureScheduler)
         )
 
         val subscription = PublishSubject.create<TestState>()
@@ -313,12 +313,12 @@ class BaseFeatureWithSchedulerTest {
         assertValueCount(count)
     }
 
-    private class TestThreadFeatureScheduler : FeatureScheduler {
+    private class TestThreadSmartFeatureScheduler : FeatureScheduler.Smart {
         val schedulerInvocationCount: Int
             get() = countingScheduler.interactionCount
 
         private val delegate by lazy {
-            FeatureSchedulers.createFeatureScheduler("AsyncTestScheduler")
+            FeatureSchedulers.createSmartFeatureScheduler("AsyncTestScheduler")
         }
 
         val testScheduler: Scheduler
@@ -331,8 +331,8 @@ class BaseFeatureWithSchedulerTest {
         override val scheduler: Scheduler
             get() = countingScheduler
 
-        override val isOnFeatureThread: Boolean
-            get() = delegate.isOnFeatureThread
+        override val isOnSchedulerThread: Boolean
+            get() = delegate.isOnSchedulerThread
 
         private class CountingScheduler(private val delegate: Scheduler) : Scheduler() {
             var interactionCount: Int = 0

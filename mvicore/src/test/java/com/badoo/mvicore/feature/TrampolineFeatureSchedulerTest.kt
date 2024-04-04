@@ -2,16 +2,16 @@ package com.badoo.mvicore.feature
 
 import com.badoo.mvicore.element.Actor
 import com.badoo.mvicore.element.Reducer
-import com.badoo.mvicore.feature.FeatureSchedulers.TrampolineFeatureScheduler
+import com.badoo.mvicore.feature.FeatureSchedulers.TrampolineSmartFeatureScheduler
 import com.badoo.mvicore.feature.TrampolineFeatureSchedulerTest.TestFeature.Effect
 import com.badoo.mvicore.feature.TrampolineFeatureSchedulerTest.TestFeature.State
 import com.badoo.mvicore.feature.TrampolineFeatureSchedulerTest.TestFeature.Wish
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.schedulers.TestScheduler
-import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.util.concurrent.TimeUnit
 
 class TrampolineFeatureSchedulerTest {
 
@@ -19,7 +19,7 @@ class TrampolineFeatureSchedulerTest {
     fun `ensure feature is testable with trampoline scheduler`() {
         val computationScheduler = TestScheduler()
         val feature = TestFeature(
-            featureScheduler = TrampolineFeatureScheduler,
+            smartFeatureScheduler = TrampolineSmartFeatureScheduler,
             computationScheduler = computationScheduler
         )
         val states = Observable.wrap(feature).test()
@@ -31,13 +31,13 @@ class TrampolineFeatureSchedulerTest {
     }
 
     class TestFeature(
-        featureScheduler: FeatureScheduler,
+        smartFeatureScheduler: FeatureScheduler.Smart,
         computationScheduler: Scheduler
     ) : ActorReducerFeature<Wish, Effect, State, Nothing>(
         initialState = State(),
         actor = ActorImpl(scheduler = computationScheduler),
         reducer = ReducerImpl,
-        featureScheduler = featureScheduler
+        threadStrategy = FeatureThreadStrategy.ExecuteOnFeatureScheduler(smartFeatureScheduler)
     ) {
         sealed class Wish {
             data object Trigger : Wish()

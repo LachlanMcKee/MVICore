@@ -11,11 +11,11 @@ object FeatureSchedulers {
      * Creates a single threaded feature scheduler.
      */
     @JvmStatic
-    fun createFeatureScheduler(
+    fun createSmartFeatureScheduler(
         threadPrefix: String,
         threadPriority: Int = Thread.NORM_PRIORITY
-    ): FeatureScheduler {
-        return object : FeatureScheduler {
+    ): FeatureScheduler.Smart {
+        return object : FeatureScheduler.Smart {
             private val singleThreadedThreadFactory by lazy {
                 ThreadIdInterceptingThreadFactory(threadPrefix, threadPriority)
             }
@@ -26,7 +26,7 @@ object FeatureSchedulers {
             override val scheduler: Scheduler
                 get() = lazyScheduler
 
-            override val isOnFeatureThread: Boolean
+            override val isOnSchedulerThread: Boolean
                 get() = Thread.currentThread().id == singleThreadedThreadFactory.getThreadId()
         }
     }
@@ -39,10 +39,10 @@ object FeatureSchedulers {
     /**
      * A feature scheduler that is useful for unit testing.
      */
-    object TrampolineFeatureScheduler : FeatureScheduler {
+    object TrampolineSmartFeatureScheduler : FeatureScheduler.Smart {
         override val scheduler: Scheduler = Schedulers.trampoline()
 
-        override val isOnFeatureThread: Boolean = false
+        override val isOnSchedulerThread: Boolean = false
     }
 
     /**

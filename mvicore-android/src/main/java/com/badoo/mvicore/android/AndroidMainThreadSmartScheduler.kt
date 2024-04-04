@@ -12,10 +12,10 @@ import io.reactivex.android.schedulers.AndroidSchedulers
  * It also uses the 'isOnFeatureThread' field to avoid observing on the main thread if it is already
  * the current thread.
  */
-object AndroidMainThreadFeatureScheduler: FeatureScheduler {
+object AndroidMainThreadSmartScheduler : FeatureScheduler.Smart {
     override val scheduler: Scheduler
         get() = AndroidSchedulers.mainThread()
 
-    override val isOnFeatureThread: Boolean
+    override val isOnSchedulerThread: Boolean
         get() = Looper.myLooper() == Looper.getMainLooper()
 }

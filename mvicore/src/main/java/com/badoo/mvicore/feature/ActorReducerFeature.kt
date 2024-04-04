@@ -1,5 +1,6 @@
 package com.badoo.mvicore.feature
 
+import com.badoo.mvicore.MviCore
 import com.badoo.mvicore.element.Actor
 import com.badoo.mvicore.element.Bootstrapper
 import com.badoo.mvicore.element.NewsPublisher
@@ -25,7 +26,7 @@ open class ActorReducerFeature<Wish : Any, in Effect : Any, State : Any, News : 
     actor: Actor<State, Wish, Effect>,
     reducer: Reducer<State, Effect>,
     newsPublisher: NewsPublisher<Wish, Effect, State, News>? = null,
-    featureScheduler: FeatureScheduler? = null
+    threadStrategy: FeatureThreadStrategy = MviCore.getDefaultFeatureThreadStrategy(),
 ) : BaseFeature<Wish, Wish, Effect, State, News>(
     initialState = initialState,
     bootstrapper = bootstrapper,
@@ -33,5 +34,5 @@ open class ActorReducerFeature<Wish : Any, in Effect : Any, State : Any, News : 
     actor = actor,
     reducer = reducer,
     newsPublisher = newsPublisher,
-    featureScheduler = featureScheduler
+    threadStrategy = threadStrategy
 )

@@ -54,7 +54,7 @@ class BaseFeatureWithoutSchedulerTest {
             ),
             reducer = TestHelper.TestReducer(),
             newsPublisher = TestHelper.TestNewsPublisher(),
-            featureScheduler = null
+            threadStrategy = FeatureThreadStrategy.ExecuteOnCurrentThread
         )
 
         val subscription = PublishSubject.create<TestState>()

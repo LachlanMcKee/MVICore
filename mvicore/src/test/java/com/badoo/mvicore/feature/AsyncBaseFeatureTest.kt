@@ -13,13 +13,13 @@ import io.reactivex.Scheduler
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.schedulers.Schedulers
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Tests async functionality of [BaseAsyncFeature].
@@ -29,11 +29,12 @@ class AsyncBaseFeatureTest {
 
     private val featureExecutor = Executors.newSingleThreadExecutor { Thread(it, THREAD_FEATURE) }
     private val featureScheduler = Schedulers.from(featureExecutor)
-    private val observationExecutor = Executors.newSingleThreadExecutor { Thread(it, THREAD_OBSERVATION) }
+    private val observationExecutor =
+        Executors.newSingleThreadExecutor { Thread(it, THREAD_OBSERVATION) }
     private val observationScheduler = Schedulers.from(observationExecutor)
     private val disposable = CompositeDisposable()
 
-    private lateinit var feature: AsyncFeature<Wish, State, News>
+    private lateinit var feature: Feature<Wish, State, News>
 
     @AfterEach
     fun after() {
@@ -183,7 +184,7 @@ class AsyncBaseFeatureTest {
         reducer: Reducer<State, Effect> = { _, _ -> State() },
         postProcessor: PostProcessor<Action, Effect, State> = { _, _, _ -> null },
         newsPublisher: NewsPublisher<Action, Effect, State, News> = { _, _, _ -> News() }
-    ) = BaseAsyncFeature(
+    ) = BaseFeature(
         initialState = State(),
         bootstrapper = bootstrapper,
         wishToAction = wishToAction,
@@ -191,8 +192,8 @@ class AsyncBaseFeatureTest {
         reducer = reducer,
         newsPublisher = newsPublisher,
         postProcessor = postProcessor,
-        schedulers = AsyncFeatureSchedulers(
-            featureScheduler = featureScheduler,
+        threadStrategy = FeatureThreadStrategy.ExecuteOnFeatureScheduler(
+            featureScheduler = FeatureScheduler.Simple(featureScheduler),
             observationScheduler = observationScheduler
         )
     )

@@ -9,14 +9,27 @@ import com.badoo.mvicore.feature.PostProcessorTestFeature.News
 import com.badoo.mvicore.feature.PostProcessorTestFeature.State
 import com.badoo.mvicore.feature.PostProcessorTestFeature.Wish
 import io.reactivex.Observable
+import io.reactivex.schedulers.Schedulers
 import org.junit.jupiter.api.Test
 
 class BaseFeaturePostProcessorTest {
 
     @Test
-    fun `GIVEN feature scheduler provided AND InitialTrigger sent WHEN post processor sends PostProcessorTrigger THEN news is in wish order`() {
+    fun `GIVEN trampoline standard feature scheduler provided AND InitialTrigger sent WHEN post processor sends PostProcessorTrigger THEN news is in wish order`() {
         val feature =
-            PostProcessorTestFeature(featureScheduler = FeatureSchedulers.TrampolineFeatureScheduler)
+            PostProcessorTestFeature(featureScheduler = FeatureScheduler.Simple(Schedulers.trampoline()))
+        val newsTestObserver = Observable.wrap(feature.news).test()
+        feature.accept(Wish.InitialTrigger)
+
+        newsTestObserver.assertValues(News.TriggerNews, News.PostProcessorNews)
+    }
+
+    @Test
+    fun `GIVEN trampoline smart feature scheduler provided AND InitialTrigger sent WHEN post processor sends PostProcessorTrigger THEN news is in wish order`() {
+        val feature =
+            PostProcessorTestFeature(
+                featureScheduler = FeatureSchedulers.TrampolineSmartFeatureScheduler
+            )
         val newsTestObserver = Observable.wrap(feature.news).test()
         feature.accept(Wish.InitialTrigger)
 
@@ -44,7 +57,11 @@ private class PostProcessorTestFeature(featureScheduler: FeatureScheduler?) :
         wishToAction = { it },
         newsPublisher = NewsPublisherImpl(),
         postProcessor = PostProcessorImpl(),
-        featureScheduler = featureScheduler
+        threadStrategy = if (featureScheduler != null) {
+            FeatureThreadStrategy.ExecuteOnFeatureScheduler(featureScheduler)
+        } else {
+            FeatureThreadStrategy.ExecuteOnCurrentThread
+        }
     ) {
 
     sealed class Wish {
