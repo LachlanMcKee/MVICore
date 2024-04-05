@@ -5,6 +5,7 @@ import com.badoo.binder.middleware.config.MiddlewareConfiguration
 import com.badoo.binder.middleware.config.Middlewares
 import com.badoo.binder.middleware.config.WrappingCondition
 import com.badoo.binder.middleware.config.WrappingCondition.InstanceOf
+import com.badoo.binder.middleware.config.toFactory
 import com.badoo.mvicore.consumer.middleware.ConsumerMiddleware
 import com.badoo.mvicore.element.Actor
 import com.badoo.mvicore.element.NewsPublisher
@@ -23,7 +24,6 @@ import io.reactivex.Observable
 import io.reactivex.functions.Consumer
 import io.reactivex.observers.TestObserver
 import kotlinx.coroutines.test.TestCoroutineDispatcher
-import java.util.stream.Stream
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.ParameterizedTest
@@ -34,6 +34,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.whenever
+import java.util.stream.Stream
 
 
 sealed class TestWish {
@@ -62,7 +63,8 @@ class ConfigurationArgumentProvider : ArgumentsProvider {
             Parameter(null),
             Parameter(
                 MiddlewareConfiguration(condition = WrappingCondition.Always,
-                    factories = listOf { consumer -> createMiddlewareStub(consumer) })
+                    factories = listOf({ consumer: Consumer<Any> -> createMiddlewareStub(consumer) }.toFactory())
+                )
             )
         ).map(Arguments::of)
     }
@@ -191,7 +193,7 @@ class NewsPublishingTest {
         Middlewares.configurations.add(
             MiddlewareConfiguration(
                 condition = InstanceOf(NewsPublisher::class.java),
-                factories = listOf { _ -> testMiddleware }
+                factories = listOf({ _: Consumer<Triple<TestWish, Any, Any>> -> testMiddleware }.toFactory())
             )
         )
 

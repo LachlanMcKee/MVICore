@@ -1,7 +1,9 @@
 package com.badoo.binder.middleware
 
 import com.badoo.binder.middleware.base.Middleware
+import com.badoo.binder.middleware.base.MiddlewareKtx
 import com.badoo.binder.middleware.base.StandaloneMiddleware
+import com.badoo.binder.middleware.base.StandaloneMiddlewareKtx
 import com.badoo.binder.middleware.config.Middlewares
 import com.badoo.binder.middleware.config.NonWrappable
 import io.reactivex.functions.Consumer
@@ -19,7 +21,7 @@ import io.reactivex.functions.Consumer
  * @param postfix       Passed on to [ConsumerMiddleware], in most cases you shouldn't need to override this.
  * @param wrapperOf     Passed on to [ConsumerMiddleware], in most cases you shouldn't need to override this.
  */
-fun <In> Consumer<In>.wrapWithMiddleware(
+fun <In : Any> Consumer<In>.wrapWithMiddleware(
     standalone: Boolean = true,
     name: String? = null,
     postfix: String? = null,
@@ -45,6 +47,33 @@ fun <In> Consumer<In>.wrapWithMiddleware(
     return current
 }
 
+fun <In : Any> (suspend (In) -> Unit).wrapWithMiddlewareKtx(
+    standalone: Boolean = true,
+    name: String? = null,
+    postfix: String? = null,
+    wrapperOf: Any? = null
+): (suspend (In) -> Unit) {
+    val target = wrapperOf ?: this
+    if (target is NonWrappable) return this
+
+    var current = this
+
+    Middlewares.configurations.forEach {
+        current = it.applyOnKtx(current, target, name, standalone)
+    }
+
+    val finalMiddleWear = current
+    if (finalMiddleWear is MiddlewareKtx<*, *> && standalone) {
+        return StandaloneMiddlewareKtx(
+            wrappedMiddleware = finalMiddleWear as MiddlewareKtx<In, In>,
+            name = name ?: wrapperOf?.javaClass?.canonicalName,
+            postfix = postfix
+        )
+    }
+
+    return finalMiddleWear
+}
+
 @Deprecated(
     "Use wrapWithMiddleware directly",
     ReplaceWith(
@@ -52,7 +81,7 @@ fun <In> Consumer<In>.wrapWithMiddleware(
         "com.badoo.binder.middleware.wrapWithMiddleware"
     )
 )
-fun <In: Any> Consumer<In>.wrap(
+fun <In : Any> Consumer<In>.wrap(
     standalone: Boolean = true,
     name: String? = null,
     postfix: String? = null,

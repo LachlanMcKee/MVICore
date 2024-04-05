@@ -1,5 +1,6 @@
 package com.badoo.mvicore.feature
 
+import com.badoo.binder.middleware.wrapWithMiddlewareKtx
 import com.badoo.mvicore.element.ActorKtx
 import com.badoo.mvicore.element.BootstrapperKtx
 import com.badoo.mvicore.element.NewsPublisher
@@ -37,39 +38,37 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
     private val stateFlow: MutableStateFlow<State> = MutableStateFlow(initialState)
     private val newsFlow: MutableSharedFlow<News> = MutableSharedFlow()
 
-    private val postProcessorWrapper: PostProcessorWrapper<Action, Effect, State>? =
+    private val postProcessorWrapper: (suspend (Triple<Action, Effect, State>) -> Unit)? =
         postProcessor?.let {
             PostProcessorWrapper(
                 postProcessor = postProcessor,
                 actionFlow = actionFlow
-            )
+            ).wrapWithMiddlewareKtx(wrapperOf = postProcessor)
         }
 
-    private val newsPublisherWrapper: NewsPublisherWrapper<Action, Effect, State, News>? =
+    private val newsPublisherWrapper: (suspend (Triple<Action, Effect, State>) -> Unit)? =
         newsPublisher?.let {
             NewsPublisherWrapper(
                 newsPublisher = newsPublisher,
                 newsFlow = newsFlow
-            )
+            ).wrapWithMiddlewareKtx(wrapperOf = postProcessor)
         }
 
     private val actorWrapper = ActorWrapper(
         coroutineScope = coroutineScope,
         actor = actor,
         stateFlow = stateFlow,
-        reducerWrapper = ReducerWrapper(
+        reducer = ReducerWrapper(
             reducer = reducer,
             stateFlow = stateFlow,
-            postProcessorWrapper = postProcessorWrapper,
-            newsPublisherWrapper = newsPublisherWrapper,
-        ),
-    )
+            postProcessor = postProcessorWrapper,
+            newsPublisher = newsPublisherWrapper,
+        ).wrapWithMiddlewareKtx(),
+    ).wrapWithMiddlewareKtx()
 
     init {
         coroutineScope.launch {
-            actionFlow.collect { action ->
-                actorWrapper.processAction(action)
-            }
+            actionFlow.collect(actorWrapper::invoke)
         }
         coroutineScope.launch {
             if (bootstrapper != null) {
@@ -105,8 +104,8 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
         coroutineScope: CoroutineScope,
         private val actor: ActorKtx<State, Action, Effect>,
         private val stateFlow: StateFlow<State>,
-        private val reducerWrapper: ReducerWrapper<State, Action, Effect>,
-    ) {
+        private val reducer: (suspend (Triple<State, Action, Effect>) -> Unit),
+    ) : (suspend (Action) -> Unit) {
         private val actorChannel = Channel<Action>()
 
         init {
@@ -117,12 +116,19 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
                         actor.invoke(stateFlow.value, action).map { effect -> action to effect }
                     }
                     .collect { (action, effect) ->
-                        reducerWrapper.processEffect(stateFlow.value, action, effect)
+                        if (reducer is ReducerWrapper) {
+                            // there's no middleware around it, so we can optimise here by not creating any extra objects
+                            reducer.processEffect(stateFlow.value, action, effect)
+
+                        } else {
+                            // there are middlewares around it, and we must treat it as Consumer
+                            reducer.invoke(Triple(stateFlow.value, action, effect))
+                        }
                     }
             }
         }
 
-        suspend fun processAction(action: Action) {
+        override suspend fun invoke(action: Action) {
             actorChannel.send(action)
         }
     }
@@ -130,22 +136,59 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
     private class ReducerWrapper<State : Any, Action : Any, Effect : Any>(
         private val reducer: Reducer<State, Effect>,
         private val stateFlow: MutableStateFlow<State>,
-        private val postProcessorWrapper: PostProcessorWrapper<Action, Effect, State>?,
-        private val newsPublisherWrapper: NewsPublisherWrapper<Action, Effect, State, *>?
-    ) {
+        private val postProcessor: (suspend (Triple<Action, Effect, State>) -> Unit)?,
+        private val newsPublisher: (suspend (Triple<Action, Effect, State>) -> Unit)?
+    ) : (suspend (Triple<State, Action, Effect>) -> Unit) {
+
+        override suspend fun invoke(t: Triple<State, Action, Effect>) {
+            val (state, action, effect) = t
+            processEffect(state, action, effect)
+        }
+
         suspend fun processEffect(state: State, action: Action, effect: Effect) {
             val newState = reducer.invoke(state, effect)
             stateFlow.update { newState }
+            invokePostProcessor(action, effect, newState)
+            invokeNewsPublisher(action, effect, newState)
+        }
 
-            postProcessorWrapper?.postProcess(action, effect, newState)
-            newsPublisherWrapper?.publishNews(action, effect, newState)
+        private suspend fun invokePostProcessor(action: Action, effect: Effect, state: State) {
+            postProcessor?.also {
+                if (postProcessor is PostProcessorWrapper) {
+                    // there's no middleware around it, so we can optimise here by not creating any extra objects
+                    postProcessor.postProcess(action, effect, state)
+
+                } else {
+                    // there are middlewares around it, and we must treat it as Consumer
+                    postProcessor.invoke(Triple(action, effect, state))
+                }
+            }
+        }
+
+        private suspend fun invokeNewsPublisher(action: Action, effect: Effect, state: State) {
+            newsPublisher?.also {
+                if (newsPublisher is NewsPublisherWrapper<Action, Effect, State, *>) {
+                    // there's no middleware around it, so we can optimise here by not creating any extra objects
+                    newsPublisher.publishNews(action, effect, state)
+
+                } else {
+                    // there are middlewares around it, and we must treat it as Consumer
+                    newsPublisher.invoke(Triple(action, effect, state))
+                }
+            }
         }
     }
 
     private class PostProcessorWrapper<Action : Any, Effect : Any, State : Any>(
         private val postProcessor: PostProcessor<Action, Effect, State>,
         private val actionFlow: MutableSharedFlow<Action>
-    ) {
+    ) : (suspend (Triple<Action, Effect, State>) -> Unit) {
+
+        override suspend fun invoke(t: Triple<Action, Effect, State>) {
+            val (action, effect, state) = t
+            postProcess(action, effect, state)
+        }
+
         suspend fun postProcess(action: Action, effect: Effect, state: State) {
             postProcessor.invoke(action, effect, state)?.let { postProcessorAction ->
                 actionFlow.emit(postProcessorAction)
@@ -156,7 +199,13 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
     private class NewsPublisherWrapper<Action : Any, Effect : Any, State : Any, News : Any>(
         private val newsPublisher: NewsPublisher<Action, Effect, State, News>,
         private val newsFlow: MutableSharedFlow<News>
-    ) {
+    ) : (suspend (Triple<Action, Effect, State>) -> Unit) {
+
+        override suspend fun invoke(t: Triple<Action, Effect, State>) {
+            val (action, effect, state) = t
+            publishNews(action, effect, state)
+        }
+
         suspend fun publishNews(action: Action, effect: Effect, state: State) {
             newsPublisher.invoke(action, effect, state)?.let { news ->
                 newsFlow.emit(news)

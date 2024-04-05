@@ -26,6 +26,8 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import com.badoo.binder.middleware.config.toFactory
+import io.reactivex.functions.Consumer
 
 class BootstrapperTest {
 
@@ -110,7 +112,7 @@ class BootstrapperTest {
         Middlewares.configurations.add(
             MiddlewareConfiguration(
                 condition = WrappingCondition.Always,
-                factories = listOf { middlewareStub }
+                factories = listOf({ _: Consumer<Action> -> middlewareStub }.toFactory())
             )
         )
 
