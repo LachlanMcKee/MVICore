@@ -9,16 +9,17 @@ import com.badoo.mvicore.element.WishToAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
-class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, News : Any>(
+open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, News : Any>(
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default),
     initialState: State,
     bootstrapper: BootstrapperKtx<Action>? = null,
@@ -29,7 +30,6 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
     newsPublisher: NewsPublisher<Action, Effect, State, News>? = null,
 ) : FeatureKtx<Wish, State, News> {
 
-    private val mutex = Mutex()
     private val actionFlow: MutableSharedFlow<Action> = MutableSharedFlow()
     private val stateFlow: MutableStateFlow<State> = MutableStateFlow(initialState)
     private val newsFlow: MutableSharedFlow<News> = MutableSharedFlow()
@@ -51,6 +51,7 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
         }
 
     private val actorWrapper = ActorWrapper(
+        coroutineScope = coroutineScope,
         actor = actor,
         stateFlow = stateFlow,
         reducerWrapper = ReducerWrapper(
@@ -64,10 +65,7 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
     init {
         coroutineScope.launch {
             actionFlow.collect { action ->
-                // Ensure the actor is called serially to ensure state changes are deterministic.
-                mutex.withLock {
-                    actorWrapper.processAction(state, action)
-                }
+                actorWrapper.processAction(state, action)
             }
         }
         coroutineScope.launch {
@@ -100,20 +98,31 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
     }
 
     private class ActorWrapper<State : Any, Action : Any, Effect : Any>(
+        private val coroutineScope: CoroutineScope,
         private val actor: ActorKtx<State, Action, Effect>,
         private val stateFlow: StateFlow<State>,
         private val reducerWrapper: ReducerWrapper<State, Action, Effect>,
     ) {
-        suspend fun processAction(state: State, action: Action) {
-            actor
-                .invoke(state, action)
-                .collect { effect ->
-                    invokeReducer(action, effect)
-                }
+        private val reducerChannel = Channel<Pair<Action, Effect>>()
+
+        init {
+            coroutineScope.launch {
+                reducerChannel
+                    .consumeAsFlow()
+                    .collect { (action, effect) ->
+                        reducerWrapper.processEffect(stateFlow.value, action, effect)
+                    }
+            }
         }
 
-        private suspend fun invokeReducer(action: Action, effect: Effect) {
-            reducerWrapper.processEffect(stateFlow.value, action, effect)
+        suspend fun processAction(state: State, action: Action) {
+            coroutineScope.launch {
+                actor
+                    .invoke(state, action)
+                    .collect { effect ->
+                        reducerChannel.send(Pair(action, effect))
+                    }
+            }
         }
     }
 
@@ -125,17 +134,10 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
     ) {
         suspend fun processEffect(state: State, action: Action, effect: Effect) {
             val newState = reducer.invoke(state, effect)
-            stateFlow.emit(newState)
-            invokePostProcessor(action, effect, newState)
-            invokeNewsPublisher(action, effect, newState)
-        }
+            stateFlow.update { newState }
 
-        private suspend fun invokePostProcessor(action: Action, effect: Effect, state: State) {
-            postProcessorWrapper?.postProcess(action, effect, state)
-        }
-
-        private suspend fun invokeNewsPublisher(action: Action, effect: Effect, state: State) {
-            newsPublisherWrapper?.publishNews(action, effect, state)
+            postProcessorWrapper?.postProcess(action, effect, newState)
+            newsPublisherWrapper?.publishNews(action, effect, newState)
         }
     }
 
@@ -144,8 +146,8 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
         private val actionFlow: MutableSharedFlow<Action>
     ) {
         suspend fun postProcess(action: Action, effect: Effect, state: State) {
-            postProcessor.invoke(action, effect, state)?.let {
-                actionFlow.emit(it)
+            postProcessor.invoke(action, effect, state)?.let { postProcessorAction ->
+                actionFlow.emit(postProcessorAction)
             }
         }
     }
@@ -155,8 +157,8 @@ class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : Any, 
         private val newsFlow: MutableSharedFlow<News>
     ) {
         suspend fun publishNews(action: Action, effect: Effect, state: State) {
-            newsPublisher.invoke(action, effect, state)?.let {
-                newsFlow.emit(it)
+            newsPublisher.invoke(action, effect, state)?.let { news ->
+                newsFlow.emit(news)
             }
         }
     }
