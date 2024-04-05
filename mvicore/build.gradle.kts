@@ -18,11 +18,15 @@ tasks.withType<Test> {
 dependencies {
     api(project(":binder"))
     api(libs.rxjava2)
+
     implementation(libs.rxkotlin)
     implementation(libs.kotlin.stdlib)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     testRuntimeOnly(libs.junit5.engine)
     testImplementation(libs.junit5.api)
     testImplementation(libs.junit5.params)
     testImplementation(libs.mockito.kotlin)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
 }

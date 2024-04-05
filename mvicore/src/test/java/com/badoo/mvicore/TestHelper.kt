@@ -23,13 +23,20 @@ import com.badoo.mvicore.TestHelper.TestWish.MaybeFulfillable
 import com.badoo.mvicore.TestHelper.TestWish.TranslatesTo3Effects
 import com.badoo.mvicore.TestHelper.TestWish.Unfulfillable
 import com.badoo.mvicore.element.Actor
+import com.badoo.mvicore.element.ActorKtx
 import com.badoo.mvicore.element.Bootstrapper
+import com.badoo.mvicore.element.BootstrapperKtx
 import com.badoo.mvicore.element.NewsPublisher
 import com.badoo.mvicore.element.Reducer
 import io.reactivex.Observable
 import io.reactivex.Observable.empty
 import io.reactivex.Observable.just
 import io.reactivex.Scheduler
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import java.util.concurrent.TimeUnit
 
 class TestHelper {
@@ -56,6 +63,10 @@ class TestHelper {
 
     class TestEmptyBootstrapper : Bootstrapper<TestWish> {
         override fun invoke(): Observable<out TestWish> = empty()
+    }
+
+    class TestEmptyBootstrapperKtx : BootstrapperKtx<TestWish> {
+        override fun invoke(): Flow<TestWish> = emptyFlow()
     }
 
     sealed class TestWish {
@@ -140,7 +151,52 @@ class TestHelper {
             )
     }
 
-    class TestReducer(private val invocationCallback: () -> Unit = {}) : Reducer<TestState, TestEffect> {
+    class TestActorKtx : ActorKtx<TestState, TestWish, TestEffect> {
+
+        override fun invoke(state: TestState, wish: TestWish): Flow<TestEffect> =
+            when (wish) {
+                Unfulfillable -> noop()
+                MaybeFulfillable -> conditional(state)
+                FulfillableInstantly1 -> fulfill(amount = instantFulfillAmount1)
+                FulfillableInstantly2 -> fulfill(amount = instantFulfillAmount2)
+                is FulfillableAsync -> asyncJob(wish)
+                TranslatesTo3Effects -> emit3effects()
+                LoopbackWishInitial -> flowOf(LoopbackEffectInitial)
+                LoopbackWish1 -> flowOf(LoopbackEffect1)
+                LoopbackWish2 -> flowOf(LoopbackEffect2)
+                LoopbackWish3 -> flowOf(LoopbackEffect3)
+                is IncreasCounterBy -> flowOf(InstantEffect(amount = wish.value))
+            }
+
+        private fun noop(): Flow<TestEffect> =
+            emptyFlow()
+
+        private fun conditional(state: TestState): Flow<TestEffect> =
+            // depends on current state
+            if (state.counter % divisorForModuloInConditionalWish == 0)
+                flowOf(ConditionalThingHappened(multiplier = conditionalMultiplier))
+            else
+                noop()
+
+        private fun fulfill(amount: Int): Flow<TestEffect> =
+            flowOf(InstantEffect(amount))
+
+        private fun asyncJob(wish: FulfillableAsync): Flow<TestEffect> = flow {
+            emit(StartedAsync)
+            delay(wish.delayMs)
+            emit(FinishedAsync(delayedFulfillAmount))
+        }
+
+        private fun emit3effects(): Flow<TestEffect> =
+            flowOf(
+                MultipleEffect1,
+                MultipleEffect2,
+                MultipleEffect3
+            )
+    }
+
+    class TestReducer(private val invocationCallback: () -> Unit = {}) :
+        Reducer<TestState, TestEffect> {
         override fun invoke(state: TestState, effect: TestEffect): TestState {
             invocationCallback()
             return when (effect) {
@@ -150,6 +206,7 @@ class TestHelper {
                     counter = state.counter + effect.amount,
                     loading = false
                 )
+
                 is ConditionalThingHappened -> state.copy(counter = state.counter * effect.multiplier)
                 MultipleEffect1 -> state
                 MultipleEffect2 -> state

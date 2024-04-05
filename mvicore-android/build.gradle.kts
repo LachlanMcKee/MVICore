@@ -47,6 +47,8 @@ dependencies {
     api(libs.androidx.lifecycle.common)
     api(libs.rxjava2)
 
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation(libs.kotlin.stdlib)
     implementation(libs.rxandroid)
 
