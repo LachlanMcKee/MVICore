@@ -8,6 +8,7 @@ import com.badoo.mvicore.element.Reducer
 import com.badoo.mvicore.element.WishToAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -65,7 +68,7 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
     init {
         coroutineScope.launch {
             actionFlow.collect { action ->
-                actorWrapper.processAction(state, action)
+                actorWrapper.processAction(action)
             }
         }
         coroutineScope.launch {
@@ -97,32 +100,30 @@ open class BaseFeatureKtx<Wish : Any, in Action : Any, in Effect : Any, State : 
         coroutineScope.cancel()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private class ActorWrapper<State : Any, Action : Any, Effect : Any>(
-        private val coroutineScope: CoroutineScope,
+        coroutineScope: CoroutineScope,
         private val actor: ActorKtx<State, Action, Effect>,
         private val stateFlow: StateFlow<State>,
         private val reducerWrapper: ReducerWrapper<State, Action, Effect>,
     ) {
-        private val reducerChannel = Channel<Pair<Action, Effect>>()
+        private val actorChannel = Channel<Action>()
 
         init {
             coroutineScope.launch {
-                reducerChannel
+                actorChannel
                     .consumeAsFlow()
+                    .flatMapConcat { action ->
+                        actor.invoke(stateFlow.value, action).map { effect -> action to effect }
+                    }
                     .collect { (action, effect) ->
                         reducerWrapper.processEffect(stateFlow.value, action, effect)
                     }
             }
         }
 
-        suspend fun processAction(state: State, action: Action) {
-            coroutineScope.launch {
-                actor
-                    .invoke(state, action)
-                    .collect { effect ->
-                        reducerChannel.send(Pair(action, effect))
-                    }
-            }
+        suspend fun processAction(action: Action) {
+            actorChannel.send(action)
         }
     }
 
