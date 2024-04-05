@@ -1,5 +1,6 @@
 package com.badoo.mvicore.feature
 
+import com.badoo.binder.middleware.config.Middlewares
 import com.badoo.mvicore.element.Actor
 import com.badoo.mvicore.element.NewsPublisher
 import com.badoo.mvicore.element.PostProcessor
@@ -9,9 +10,22 @@ import com.badoo.mvicore.feature.PostProcessorTestFeature.News
 import com.badoo.mvicore.feature.PostProcessorTestFeature.State
 import com.badoo.mvicore.feature.PostProcessorTestFeature.Wish
 import io.reactivex.Observable
+import kotlinx.coroutines.test.TestCoroutineDispatcher
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class BaseFeaturePostProcessorTest {
+
+    @BeforeEach
+    fun setup() {
+        BaseFeatureInteropImmediateDispatcher = TestCoroutineDispatcher()
+    }
+
+    @AfterEach
+    fun tearDown() {
+        BaseFeatureInteropImmediateDispatcher = BaseFeatureInteropImmediateDispatcherDefault
+    }
 
     @Test
     fun `GIVEN feature scheduler provided AND InitialTrigger sent WHEN post processor sends PostProcessorTrigger THEN news is in wish order`() {
@@ -23,16 +37,13 @@ class BaseFeaturePostProcessorTest {
         newsTestObserver.assertValues(News.TriggerNews, News.PostProcessorNews)
     }
 
-    /**
-     * The post processor is recursively calling the actor, meaning the news is in reverse order in this scenario.
-     */
     @Test
     fun `GIVEN feature scheduler not provided AND InitialTrigger sent WHEN post processor sends PostProcessorTrigger THEN news is in recursive order`() {
         val feature = PostProcessorTestFeature(featureScheduler = null)
         val newsTestObserver = Observable.wrap(feature.news).test()
         feature.accept(Wish.InitialTrigger)
 
-        newsTestObserver.assertValues(News.PostProcessorNews, News.TriggerNews)
+        newsTestObserver.assertValues(News.TriggerNews, News.PostProcessorNews)
     }
 }
 

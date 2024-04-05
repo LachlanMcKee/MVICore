@@ -1,5 +1,6 @@
 package com.badoo.mvicore.feature
 
+import app.cash.turbine.Event
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.TurbineContext
 import app.cash.turbine.turbineScope
@@ -147,19 +148,19 @@ class BaseFeatureKtxTest {
     fun `the number of state emissions should reflect the number of effects plus one for initial state in complex case`() =
         testFeatureStates { stateTurbine, _ ->
             val wishes = listOf(
-                FulfillableInstantly1,  // maps to 1 effect
-                FulfillableInstantly1,  // maps to 1 effect
-                MaybeFulfillable,       // maps to 0 in this case
-                Unfulfillable,          // maps to 0
-                FulfillableInstantly1,  // maps to 1
-                FulfillableInstantly1,  // maps to 1
-                MaybeFulfillable,       // maps to 1 in this case
-                TranslatesTo3Effects    // maps to 0 because the state does not change
+                FulfillableInstantly1,  // 1 state change
+                FulfillableInstantly1,  // 1 state change
+                MaybeFulfillable,       // 0 state changes
+                Unfulfillable,          // 0 state changes
+                FulfillableInstantly1,  // 1 state change
+                FulfillableInstantly1,  // 1 state change
+                MaybeFulfillable,       // 1 in this case
+                TranslatesTo3Effects    // 0 state changes
             )
 
             wishes.forEach { feature.invoke(it) }
 
-            stateTurbine.skipItems(5)
+            stateTurbine.skipItems(6) // 5 + 1 (for the initial state)
         }
 
     @Test
@@ -216,9 +217,11 @@ class BaseFeatureKtxTest {
                 initFeature(testScope)
 
                 val turbine: ReceiveTurbine<TestState> = feature.testIn(testScope)
+                println("turbine started")
                 func(turbine, testScope)
 
-                turbine.ensureAllEventsConsumed()
+                val remainingEvents = turbine.cancelAndConsumeRemainingEvents()
+                assertEquals(emptyList<Event<TestState>>(), remainingEvents)
             }
         }
 }

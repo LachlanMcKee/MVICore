@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.rxkotlin)
     implementation(libs.kotlin.stdlib)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-rx2:1.8.0")
 
     testRuntimeOnly(libs.junit5.engine)
     testImplementation(libs.junit5.api)

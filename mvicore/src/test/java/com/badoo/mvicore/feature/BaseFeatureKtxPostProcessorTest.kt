@@ -25,13 +25,13 @@ class BaseFeatureKtxPostProcessorTest {
             val testScope = CoroutineScope(coroutineContext + Job())
             turbineScope {
                 val feature = PostProcessorTestFeatureKtx(testScope)
-                val turbine: ReceiveTurbine<News> = feature.news.testIn(testScope)
+                val newsTurbine: ReceiveTurbine<News> = feature.news.testIn(testScope)
 
                 feature.invoke(Wish.InitialTrigger)
 
-                assertEquals(News.TriggerNews, turbine.awaitItem())
-                assertEquals(News.PostProcessorNews, turbine.awaitItem())
-                turbine.ensureAllEventsConsumed()
+                assertEquals(News.TriggerNews, newsTurbine.awaitItem())
+                assertEquals(News.PostProcessorNews, newsTurbine.awaitItem())
+                newsTurbine.ensureAllEventsConsumed()
             }
         }
 }

@@ -10,6 +10,8 @@ import com.badoo.mvicore.element.Actor
 import com.badoo.mvicore.element.NewsPublisher
 import com.badoo.mvicore.element.Reducer
 import com.badoo.mvicore.feature.BaseFeature
+import com.badoo.mvicore.feature.BaseFeatureInteropImmediateDispatcher
+import com.badoo.mvicore.feature.BaseFeatureInteropImmediateDispatcherDefault
 import com.badoo.mvicore.feature.Feature
 import com.badoo.mvicore.newspublishing.TestNews.News1
 import com.badoo.mvicore.newspublishing.TestNews.News2
@@ -20,6 +22,7 @@ import com.badoo.mvicore.newspublishing.TestWish.Wish3
 import io.reactivex.Observable
 import io.reactivex.functions.Consumer
 import io.reactivex.observers.TestObserver
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import java.util.stream.Stream
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.extension.ExtensionContext
@@ -71,6 +74,8 @@ class NewsPublishingTest {
     private lateinit var newsTestSubscriber: TestObserver<TestNews>
 
     private fun before(configuration: MiddlewareConfiguration?) {
+        BaseFeatureInteropImmediateDispatcher = TestCoroutineDispatcher()
+
         configuration?.let {
             Middlewares.configurations.add(it)
         }
@@ -78,6 +83,8 @@ class NewsPublishingTest {
 
     @AfterEach
     fun tearDown() {
+        BaseFeatureInteropImmediateDispatcher = BaseFeatureInteropImmediateDispatcherDefault
+
         Middlewares.configurations.clear()
     }
 

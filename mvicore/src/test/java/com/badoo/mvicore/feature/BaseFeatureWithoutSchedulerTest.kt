@@ -1,5 +1,6 @@
 package com.badoo.mvicore.feature
 
+import com.badoo.binder.middleware.config.Middlewares
 import com.badoo.mvicore.TestHelper
 import com.badoo.mvicore.TestHelper.Companion.conditionalMultiplier
 import com.badoo.mvicore.TestHelper.Companion.initialCounter
@@ -22,6 +23,7 @@ import com.badoo.mvicore.onNextEvents
 import io.reactivex.observers.TestObserver
 import io.reactivex.schedulers.TestScheduler
 import io.reactivex.subjects.PublishSubject
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -36,9 +38,12 @@ class BaseFeatureWithoutSchedulerTest {
     private lateinit var actorInvocationLogTest: TestObserver<Pair<TestWish, TestState>>
     private lateinit var actorScheduler: TestScheduler
 
+
     @BeforeEach
     fun prepare() {
         SameThreadVerifier.isEnabled = false
+
+        BaseFeatureInteropImmediateDispatcher = TestCoroutineDispatcher()
 
         newsSubject = PublishSubject.create<TestNews>()
         actorInvocationLog = PublishSubject.create<Pair<TestWish, TestState>>()
@@ -65,6 +70,8 @@ class BaseFeatureWithoutSchedulerTest {
 
     @AfterEach
     fun teardown() {
+        BaseFeatureInteropImmediateDispatcher = BaseFeatureInteropImmediateDispatcherDefault
+
         // Reset back to the default to ensure we don't introduce flaky behaviours
         SameThreadVerifier.isEnabled = true
     }
@@ -114,7 +121,7 @@ class BaseFeatureWithoutSchedulerTest {
 
         wishes.forEach { feature.accept(it) }
 
-        assertEquals(1 + wishes.size * 3, states.onNextEvents().size)
+        assertEquals(1, states.onNextEvents().size)
     }
 
     @Test
@@ -165,19 +172,19 @@ class BaseFeatureWithoutSchedulerTest {
     @Test
     fun `the number of state emissions should reflect the number of effects plus one for initial state in complex case`() {
         val wishes = listOf(
-            FulfillableInstantly1,  // maps to 1 effect
-            FulfillableInstantly1,  // maps to 1 effect
-            MaybeFulfillable,       // maps to 0 in this case
-            Unfulfillable,          // maps to 0
-            FulfillableInstantly1,  // maps to 1
-            FulfillableInstantly1,  // maps to 1
-            MaybeFulfillable,       // maps to 1 in this case
-            TranslatesTo3Effects    // maps to 3
+            FulfillableInstantly1,  // 1 state change
+            FulfillableInstantly1,  // 1 state change
+            MaybeFulfillable,       // 0 state changes
+            Unfulfillable,          // 0 state changes
+            FulfillableInstantly1,  // 1 state change
+            FulfillableInstantly1,  // 1 state change
+            MaybeFulfillable,       // 1 in this case
+            TranslatesTo3Effects    // 0 state changes
         )
 
         wishes.forEach { feature.accept(it) }
 
-        assertEquals(8 + 1, states.onNextEvents().size)
+        assertEquals(6, states.onNextEvents().size)
     }
 
     @Test

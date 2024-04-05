@@ -9,12 +9,16 @@ import com.badoo.mvicore.bootstrapper.BootstrapperTest.Action.Action2
 import com.badoo.mvicore.bootstrapper.BootstrapperTest.Action.Action3
 import com.badoo.mvicore.element.Bootstrapper
 import com.badoo.mvicore.feature.BaseFeature
+import com.badoo.mvicore.feature.BaseFeatureInteropImmediateDispatcher
+import com.badoo.mvicore.feature.BaseFeatureInteropImmediateDispatcherDefault
 import com.badoo.mvicore.feature.Feature
 import io.reactivex.Observable
 import io.reactivex.observers.TestObserver
 import io.reactivex.subjects.ReplaySubject
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -34,8 +38,14 @@ class BootstrapperTest {
     private lateinit var feature: Feature<Any, Any, Any>
     private lateinit var actionHandler: TestObserver<Action>
 
+    @BeforeEach
+    fun setup() {
+        BaseFeatureInteropImmediateDispatcher = TestCoroutineDispatcher()
+    }
+
     @AfterEach
     fun tearDown() {
+        BaseFeatureInteropImmediateDispatcher = BaseFeatureInteropImmediateDispatcherDefault
         Middlewares.configurations.clear()
     }
 
