@@ -2,9 +2,7 @@ package com.badoo.binder
 
 import com.badoo.binder.connector.ConnectorKtx
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flatMapConcat
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.mapNotNull
 
 data class ConnectionKtx<Out : Any, In : Any>(
     val from: Flow<Out>,
@@ -32,14 +30,7 @@ data class ConnectionKtx<Out : Any, In : Any>(
 
 infix fun <Out : Any, In : Any> Pair<Flow<Out>, (In) -> Unit>.using(transformer: (Out) -> In?): ConnectionKtx<Out, In> =
     using { outFlow: Flow<Out> ->
-        outFlow.flatMapConcat { out ->
-            val input = transformer(out)
-            if (input != null) {
-                flowOf(input)
-            } else {
-                emptyFlow()
-            }
-        }
+        outFlow.mapNotNull { transformer(it) }
     }
 
 infix fun <Out : Any, In : Any> Pair<Flow<Out>, (In) -> Unit>.using(connector: ConnectorKtx<Out, In>): ConnectionKtx<Out, In> =
