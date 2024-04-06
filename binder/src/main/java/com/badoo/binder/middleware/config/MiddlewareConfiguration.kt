@@ -8,7 +8,8 @@ import kotlinx.coroutines.runBlocking
 
 data class MiddlewareConfiguration(
     private val condition: WrappingCondition,
-    private val factories: List<ConsumerMiddlewareFactory<*>>
+    private val factories: List<ConsumerMiddlewareFactory<*>>,
+    private val factoriesKtx: List<ConsumerMiddlewareFactoryKtx<*>> = emptyList(),
 ) {
 
     fun <T : Any> applyOn(
@@ -70,6 +71,7 @@ data class MiddlewareConfiguration(
                             }
                         }
                     }
+                    .plus(factoriesKtx.filterIsInstance<ConsumerMiddlewareFactoryKtx<T>>())
             } else {
                 listOf()
             }

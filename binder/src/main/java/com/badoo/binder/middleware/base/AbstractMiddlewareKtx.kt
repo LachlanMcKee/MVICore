@@ -23,10 +23,10 @@ abstract class AbstractMiddlewareKtx<Out : Any, In : Any>(
     }
 
     private inline fun (suspend (In) -> Unit).applyIfMiddleware(
-        block: AbstractMiddlewareKtx<Out, In>.() -> Unit
+        block: MiddlewareKtx<Out, In>.() -> Unit
     ) {
-        if (this is AbstractMiddlewareKtx<*, *>) {
-            (this as AbstractMiddlewareKtx<Out, In>).block()
+        if (this is MiddlewareKtx<*, *>) {
+            (this as MiddlewareKtx<Out, In>).block()
         }
     }
 

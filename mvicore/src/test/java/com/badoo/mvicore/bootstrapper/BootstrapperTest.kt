@@ -1,6 +1,7 @@
 package com.badoo.mvicore.bootstrapper
 
-import com.badoo.binder.middleware.base.Middleware
+import com.badoo.binder.middleware.base.MiddlewareKtx
+import com.badoo.binder.middleware.config.ConsumerMiddlewareFactoryKtx
 import com.badoo.binder.middleware.config.MiddlewareConfiguration
 import com.badoo.binder.middleware.config.Middlewares
 import com.badoo.binder.middleware.config.WrappingCondition
@@ -23,11 +24,8 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.spy
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import com.badoo.binder.middleware.config.toFactory
-import io.reactivex.functions.Consumer
 
 class BootstrapperTest {
 
@@ -106,13 +104,17 @@ class BootstrapperTest {
         }
     }
 
-    private fun setupTestMiddlewareConfiguration(): Middleware<Any, Action> {
-        val middlewareStub = spy(object : Middleware<Any, Action>(mock()) {})
+    private fun setupTestMiddlewareConfiguration(): MiddlewareKtx<Any, Action> {
+        val middlewareStub = mock<MiddlewareKtx<Any, Action>>()
 
         Middlewares.configurations.add(
             MiddlewareConfiguration(
                 condition = WrappingCondition.Always,
-                factories = listOf({ _: Consumer<Action> -> middlewareStub }.toFactory())
+                factories = emptyList(),
+                factoriesKtx = listOf(object : ConsumerMiddlewareFactoryKtx<Action> {
+                    override fun invoke(p1: suspend (Action) -> Unit): MiddlewareKtx<Any, Action> =
+                        middlewareStub
+                })
             )
         )
 
