@@ -6,7 +6,7 @@ dependencyAnalysis = "1.19.0"
 # Android
 androidLifecycleVersion = "2.5.1"
 androidAppCompatVersion = "1.4.1"
-androidMaterialVersion = "1.4.0"
+androidMaterialVersion = "1.12.0"
 constraintLayoutVersion = "2.1.0"
 
 # Rx
