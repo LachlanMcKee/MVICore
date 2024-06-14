@@ -1,5 +1,5 @@
 plugins {
-    id("org.jetbrains.intellij") version "1.8.0"
+    id("org.jetbrains.intellij") version "1.17.4"
 }
 
 group = "com.badoo.mvicore"
